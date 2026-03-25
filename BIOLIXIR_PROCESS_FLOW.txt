@@ -1,0 +1,236 @@
+================================================================================
+   BIOLIXIR: SYNTHETIC MIXOLOGY GENESIS ENGINE
+   Process Flow & Feature Explanation Document
+================================================================================
+Generated: 2026-03-25
+
+--------------------------------------------------------------------------------
+I. SYSTEM OVERVIEW
+--------------------------------------------------------------------------------
+Biolixir is an evolutionary cocktail synthesis engine that treats recipes as
+living "genomes." It uses a Genetic Algorithm (GA) — inspired by Darwinian
+natural selection — combined with Natural Language Processing (NLP) to
+evolve cocktail recipes that best match a user's described "vibe."
+
+--------------------------------------------------------------------------------
+II. THE FULL PROCESS FLOW (Step by Step)
+--------------------------------------------------------------------------------
+
+STEP 1: INPUT
+  User provides:
+    - Target Vibe: a natural language description (e.g. "Smoky, late night, contemplative")
+    - Generations:  number of evolutionary cycles (recommended: 10-20)
+    - Population:   number of candidate recipes per generation (recommended: 20-50)
+
+STEP 2: POPULATION INITIALIZATION
+  The system randomly seeds a population of N recipes from the historical
+  cocktail dataset. Each recipe is a "genome" — a list of ingredients with
+  milliliter volumes, categories, and a preparation method.
+
+  Representation:
+    Genome = [
+      { name: "Rum",          ml: 45, category: "BASE"      },
+      { name: "Lime Juice",   ml: 22, category: "ACID"      },
+      { name: "Black Sugar",  ml: 15, category: "SWEETENER" },
+      ...
+    ]
+
+  Each individual also receives:
+    - A unique ID (e.g. "g0_i3" = Generation 0, Index 3)
+    - A parent list (empty at initialization)
+
+STEP 3: FITNESS EVALUATION
+  Every individual is scored using a multi-objective fitness function:
+
+  F_total = (0.4 × S_vibe) + (0.4 × S_structure) + (0.2 × S_novelty)
+
+  Components:
+  a) VIBE ALIGNMENT (S_vibe):
+       Uses the "all-MiniLM-L6-v2" SentenceTransformer to embed the user's
+       vibe text and the recipe's ingredient+tag profile into 384-dimensional
+       vectors. Cosine similarity measures semantic closeness.
+       Formula: S_vibe = (cos(θ) + 1) / 2   [mapped to [0, 1]]
+
+  b) STRUCTURAL HOMEOSTASIS (S_structure):
+       Enforces mixological "laws":
+         - Volume must be within 90ml to 250ml
+         - Acid-to-Sweet ratio must be 0.8 to 1.2
+       Deviation from these bounds applies a proportional penalty.
+
+  c) NOVELTY (S_novelty):
+       Measures how different this recipe is from the existing dataset using
+       Jaccard distance. Novel recipes score higher.
+       Formula: S_novelty = 1.0 - max_jaccard_similarity(recipe, dataset)
+
+STEP 4: TOURNAMENT SELECTION
+  To choose parents for breeding:
+    1. Three random individuals are sampled from the population
+    2. The highest-fitness individual wins the tournament
+    3. This is repeated for Parent A and Parent B
+    4. This creates selection pressure without creating a monoculture
+
+  Log example: "Selection Event: Tournament Win. Specimen #14 defeated #2 and #19"
+
+STEP 5: CROSSOVER (GENETIC RECOMBINATION)
+  After selecting two parents, the system creates two children:
+
+  Type A (50% probability): "Modifier Swap"
+    - Child 1 = Parent A's BASE + Parent B's MODIFIERS/ACIDS/SWEETENERS
+    - Child 2 = Parent B's BASE + Parent A's MODIFIERS/ACIDS/SWEETENERS
+    → Analogous to "gene inheritance" from two parents
+
+  Type B (50% probability): "Base Spirit Swap"
+    - Child 1 = Parent B's BASE + Parent A's remaining
+    - Child 2 = Parent A's BASE + Parent B's remaining
+    → Changes the core spirit while keeping the modifier profile
+
+  The child's ID records both parent IDs: parents = ["g0_i3", "g1_i7"]
+  This is used to draw the Genealogy Tree.
+
+STEP 6: MUTATION
+  Three mutation operators are applied stochastically:
+
+  a) Volume Creep (rate 0.2 per ingredient):
+       Randomly adjusts the volume of an ingredient by ±15ml.
+       Ensures small evolutionary steps (gradient-free optimization).
+
+  b) Ingredient Swap (rate 0.1 per ingredient):
+       Replaces one ingredient with another from the same category pool.
+       Ensures flavour profiles stay structurally balanced.
+
+  c) Insertion (rate 0.04):
+       Adds a random MODIFIER ingredient (5-15ml) to increase complexity.
+
+STEP 7: ELITISM
+  Before generating the new population, the TOP 5% (or minimum 1) of
+  individuals are copied directly to the next generation unchanged.
+  This guarantees that the Best Fitness line NEVER decreases.
+
+STEP 8: GENERATIONAL REPLACEMENT
+  The new population (elites + new children) replaces the old one.
+  All individuals are re-evaluated for fitness.
+  A "snapshot" of the entire population is recorded:
+    {
+      id, parents,
+      fitness, vibe, structure, novelty,
+      name
+    }
+  → This drives the Spatio-Temporal Population Snapshot feature.
+
+STEP 9: CONVERGENCE
+  The algorithm repeats Steps 3-8 for the requested number of generations.
+  Convergence occurs when Best Fitness stabilizes (plateaus).
+
+STEP 10: OUTPUT — THE ALPHA COCKTAIL
+  The highest-fitness individual from the final generation is the "Alpha Specimen".
+  It is augmented with:
+    - A generated creative name
+    - Estimated ABV (Alcohol By Volume)
+    - Full synthesis instructions
+    - A breakdown of its fitness scores
+
+--------------------------------------------------------------------------------
+III. VISUALIZATION FEATURES EXPLAINED
+--------------------------------------------------------------------------------
+
+A) CONVERGENCE DYNAMICS CHART
+   An area chart showing per-generation:
+     - Best Fitness (solid green): the top individual's score
+     - Avg Fitness (blue area): average health of the population
+     - Worst Fitness (dashed red): the "Hall of Shame" — the weakest individual
+   Key insight: Best should rise, Avg should approach Best, Worst reveals how
+   aggressive selection pressure is.
+
+B) BIO-KINETIC PROFILE (Radar Chart)
+   A multi-axis radar showing the Alpha cocktail's three fitness components.
+   Key insight: A balanced three-way profile indicates a well-rounded cocktail.
+   A spike in one axis means the recipe is optimized for that trait at some cost.
+
+C) SPATIO-TEMPORAL POPULATION SNAPSHOT
+   A per-generation scatter plot:
+     X-axis: Vibe Alignment score
+     Y-axis: Structural Balance score
+     Dot size: Novelty score
+     Dot color: Overall fitness grade (green=elite, red=rejected)
+   Use the slider to "replay" how the population evolved over generations.
+   Key insight: Early generations are scattered randomly. Late generations
+   cluster toward the top-right corner (high vibe + high structure).
+
+D) 3D FITNESS PHENOTYPE SPACE
+   An interactive 3D scatter plot (Three.js) using the last generation:
+     X-axis: Vibe Alignment
+     Y-axis: Total Fitness
+     Z-axis: Novelty Score
+   Each dot is a real cocktail recipe from the final population.
+   The glowing ★ ALPHA node marks the winning specimen.
+   Key insight: The 3D view reveals how the GA navigated the search space
+   and where it found the fitness "peak."
+
+E) GENETIC GENEALOGY TREE
+   An SVG tree diagram built from real parent IDs recorded during evolution.
+   Each node shows: cocktail name, fitness score, generation number.
+   Edges represent crossover events (who bred with whom).
+   Color codes: green=elite fit, blue=good, yellow=weak, red=rejected.
+   Key insight: Shows the actual "family tree" of the Alpha cocktail,
+   revealing which ancestral recipes contributed to its genetic heritage.
+
+--------------------------------------------------------------------------------
+IV. KEY BIOLOGICAL ANALOGIES
+--------------------------------------------------------------------------------
+  Computer Concept       → Biological Analogy
+  ─────────────────────────────────────────────
+  Recipe (dict)          → Organism (phenotype)
+  Ingredient list        → Chromosome / DNA
+  Single ingredient      → Gene
+  Volume amount          → Gene expression level
+  Fitness function       → Environmental selection pressure
+  Crossover              → Sexual reproduction
+  Mutation               → Random genetic mutation / cosmic ray
+  Elitism                → Survival of the fittest
+  Generation             → Life cycle / epoch
+  Population             → Gene pool
+  Target Vibe            → Environmental "niche" to adapt to
+
+--------------------------------------------------------------------------------
+V. HOW TO RUN THE SYSTEM
+--------------------------------------------------------------------------------
+  Backend (FastAPI):
+    cd backend
+    source venv/bin/activate
+    uvicorn main:app --port 8000 --reload
+
+  Frontend (Vite + React):
+    cd frontend
+    npm run dev
+
+  Access UI: http://localhost:5173
+
+  API Documentation: http://localhost:8000/docs
+
+--------------------------------------------------------------------------------
+VI. FILE STRUCTURE
+--------------------------------------------------------------------------------
+  backend/
+    main.py           → FastAPI endpoints: /evolve, /analytics, /export
+    evolution.py      → Genetic Algorithm core engine
+    data_loader.py    → CSV parsing, unit standardization, ingredient categorization
+
+  frontend/src/
+    components/
+      EvolutionChamber.jsx    → Input form + DNA surgery animation + sequence log
+      StatisticalDashboard.jsx → Tabbed views: Insights, Population, 3D, Lineage
+      PopulationTimeline.jsx  → Spatio-temporal scatter with gen slider
+      FitnessOrb3D.jsx        → Three.js 3D fitness phenotype space
+      GenealogyTree.jsx       → SVG ancestry tree from real parent IDs
+      DNASurgery.jsx          → Real-time crossover/mutation animation
+      TheoryCodex.jsx         → Mathematical theory explanations
+    utils/
+      download.js             → PNG / SVG / JSON download utilities
+
+  Data/raw/
+    Cocktail metadata.csv     → Tags, vibes, categories per cocktail
+    Recipe details.csv        → Raw ingredient/measure data
+
+================================================================================
+END OF DOCUMENT
+================================================================================

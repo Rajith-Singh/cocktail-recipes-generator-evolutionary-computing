@@ -42,7 +42,7 @@ class EvolveRequest(BaseModel):
 
 @app.post("/evolve")
 def evolve_cocktail(request: EvolveRequest):
-    alpha, history, exp_log = ga.evolve(
+    alpha, history, exp_log, snapshots = ga.evolve(
         target_vibe=request.target_vibe,
         generations=request.generations,
         pop_size=request.pop_size
@@ -52,6 +52,7 @@ def evolve_cocktail(request: EvolveRequest):
     latest_run['history'] = history
     latest_run['vibe'] = request.target_vibe
     latest_run['exp_log'] = exp_log
+    latest_run['snapshots'] = snapshots
     
     # Calculate ABV (Rough estimate: Base=40%, Modifier=20%, other=0)
     total_ml = 0
@@ -90,7 +91,8 @@ def evolve_cocktail(request: EvolveRequest):
     return {
         "alpha": alpha,
         "history": history,
-        "exp_log": exp_log
+        "exp_log": exp_log,
+        "snapshots": snapshots
     }
 
 @app.get("/analytics")

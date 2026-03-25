@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Beaker, Zap, Activity } from 'lucide-react';
+import { Play, Activity, Terminal } from 'lucide-react';
+import DNASurgery from './DNASurgery';
 
 const EvolutionChamber = ({ onDataEvolved }) => {
   const [vibe, setVibe] = useState('Smoky, late night, contemplative');
-  const [gens, setGens] = useState(10);
-  const [pop, setPop] = useState(20);
+  const [gens, setGens] = useState(20);
+  const [pop, setPop] = useState(50);
   const [isEvolving, setIsEvolving] = useState(false);
   const [logs, setLogs] = useState([]);
+  const [currentLine, setCurrentLine] = useState('');
   const terminalRef = useRef(null);
 
   useEffect(() => {
@@ -18,7 +20,8 @@ const EvolutionChamber = ({ onDataEvolved }) => {
   const runEvolution = async () => {
     setIsEvolving(true);
     setLogs(["[SYSTEM] Initializing DNA sequences...", "[SYSTEM] Connecting to Mixology Neural Bridge..."]);
-    
+    setCurrentLine('');
+
     try {
       const response = await fetch('http://localhost:8000/evolve', {
         method: 'POST',
@@ -29,17 +32,18 @@ const EvolutionChamber = ({ onDataEvolved }) => {
           pop_size: pop
         })
       });
-      
+
       const data = await response.json();
-      
-      // Simulate real-time logging for effect
+
       if (data.exp_log) {
         for (let i = 0; i < data.exp_log.length; i++) {
-          await new Promise(r => setTimeout(r, 20)); // High speed simulation
-          setLogs(prev => [...prev, data.exp_log[i]]);
+          await new Promise(r => setTimeout(r, 15));
+          const line = data.exp_log[i];
+          setCurrentLine(line);
+          setLogs(prev => [...prev, line]);
         }
       }
-      
+
       onDataEvolved(data);
       setLogs(prev => [...prev, "[SUCCESS] Evolution complete. Alpha specimen captured."]);
     } catch (error) {
@@ -65,35 +69,47 @@ const EvolutionChamber = ({ onDataEvolved }) => {
           <div style={{marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem'}}>
             <div>
               <label className="stat-label">Target Vibe (Genotype)</label>
-              <input 
-                className="bio-input" 
-                value={vibe} 
+              <input
+                className="bio-input"
+                value={vibe}
                 onChange={(e) => setVibe(e.target.value)}
                 placeholder="e.g. Tropical, vibrant, energetic"
               />
             </div>
             <div style={{display: 'flex', gap: '1rem'}}>
               <div style={{flex: 1}}>
-                <label className="stat-label">Generations</label>
-                <input 
-                  type="number" 
-                  className="bio-input" 
-                  value={gens} 
-                  onChange={(e) => setGens(parseInt(e.target.value))}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <label className="stat-label">Generations</label>
+                  <span className="mono" style={{fontSize: '0.65rem', color: 'var(--bio-primary)'}}>{gens} cycles</span>
+                </div>
+                <input
+                  type="number"
+                  className="bio-input"
+                  value={gens}
+                  min={1}
+                  max={100}
+                  onChange={(e) => setGens(Math.max(1, parseInt(e.target.value) || 1))}
                 />
+                <div style={{fontSize: '0.65rem', color: 'var(--bio-text-muted)', marginTop: '4px', fontFamily: 'JetBrains Mono'}}>Range: 1 – 100</div>
               </div>
               <div style={{flex: 1}}>
-                <label className="stat-label">Population</label>
-                <input 
-                  type="number" 
-                  className="bio-input" 
-                  value={pop} 
-                  onChange={(e) => setPop(parseInt(e.target.value))}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <label className="stat-label">Population Size</label>
+                  <span className="mono" style={{fontSize: '0.65rem', color: 'var(--bio-secondary)'}}>{pop} specimens</span>
+                </div>
+                <input
+                  type="number"
+                  className="bio-input"
+                  value={pop}
+                  min={5}
+                  max={200}
+                  onChange={(e) => setPop(Math.max(5, parseInt(e.target.value) || 5))}
                 />
+                <div style={{fontSize: '0.65rem', color: 'var(--bio-text-muted)', marginTop: '4px', fontFamily: 'JetBrains Mono'}}>Range: 5 – 200</div>
               </div>
             </div>
-            <button 
-              className="bio-button" 
+            <button
+              className="bio-button"
               onClick={runEvolution}
               disabled={isEvolving}
               style={{marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'}}
@@ -104,18 +120,24 @@ const EvolutionChamber = ({ onDataEvolved }) => {
           </div>
         </div>
 
-        <div className="bio-card">
+        <div className="bio-card" style={{display: 'flex', flexDirection: 'column'}}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-            <h3>Live Sequence Log</h3>
-            <div className="dna-spinner" style={{width: '20px', height: '20px', animationDuration: '1s'}}></div>
+            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+              <Terminal size={20} style={{color: 'var(--bio-primary)'}} />
+              <h3>Genetic Sequence Synthesis</h3>
+            </div>
+            {isEvolving && <div className="dna-spinner" style={{width: '20px', height: '20px', animationDuration: '1s'}}></div>}
           </div>
-          <div className="terminal" ref={terminalRef}>
+
+          <DNASurgery currentLogLine={currentLine} />
+
+          <div className="terminal" ref={terminalRef} style={{flex: 1, marginTop: '0.5rem'}}>
             {logs.map((log, i) => (
               <div key={i} className={getLineClass(log)}>
                 {log}
               </div>
             ))}
-            {logs.length === 0 && <div className="log-line muted">Awaiting sequence initiation...</div>}
+            {logs.length === 0 && <div className="log-line" style={{opacity: 0.4}}>Awaiting sequence initiation...</div>}
           </div>
         </div>
       </div>

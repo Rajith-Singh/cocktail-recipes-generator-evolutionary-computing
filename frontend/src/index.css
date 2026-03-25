@@ -226,6 +226,31 @@ code, .mono {
   50% { transform: translateY(-20px) scale(1.05); }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ancestry-tree {
+  position: relative;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 1rem;
+}
+
+.ancestry-tree::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ancestry-tree::-webkit-scrollbar-thumb {
+  background: var(--bio-border);
+  border-radius: 2px;
+}
+
+.dashboard-container {
+  animation: fadeIn 0.5s ease-out;
+}
+
 .bg-particles {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -360,3 +385,73 @@ code, .mono {
   border-top: 1px dashed rgba(0,255,136,0.2);
   padding-top: 0.5rem;
 }
+
+/* ── Phase 3 Styles ──────────────────────────────────── */
+.download-btn {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--bio-border);
+  color: var(--bio-text-muted);
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.download-btn:hover {
+  border-color: var(--bio-primary);
+  color: var(--bio-primary);
+  box-shadow: 0 0 10px rgba(0,255,136,0.15);
+}
+
+.info-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: rgba(0,195,255,0.08);
+  border: 1px solid rgba(0,195,255,0.2);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.78rem;
+  color: var(--bio-text-muted);
+  line-height: 1.5;
+}
+
+.info-badge svg {
+  min-width: 14px;
+  color: var(--bio-secondary);
+  margin-top: 2px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite alternate;
+}
+
+/* Generation building animation */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.gen-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  animation: slideIn 0.3s ease;
+}
+
+.gen-alert-best { background: rgba(0,255,136,0.1); border-left: 3px solid var(--bio-primary); }
+.gen-alert-avg  { background: rgba(0,195,255,0.08); border-left: 3px solid var(--bio-secondary); }
+.gen-alert-worst { background: rgba(255,0,127,0.08); border-left: 3px solid var(--bio-accent); }

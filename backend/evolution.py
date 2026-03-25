@@ -89,12 +89,14 @@ class EvolutionaryMixology:
                 max_jaccard_sim = sim
         return 1.0 - max_jaccard_sim
 
-    def generate_random_genome(self, target_vibe: str) -> Dict:
+    def generate_random_genome(self, target_vibe: str, genome_id: str = "seed") -> Dict:
         seed_recipe = self.df.sample(1).iloc[0]
         while 'Parsed_Ingredients' not in seed_recipe or len(seed_recipe['Parsed_Ingredients']) == 0:
             seed_recipe = self.df.sample(1).iloc[0]
         genome = copy.deepcopy(seed_recipe.to_dict())
         genome['Method'] = random.choice(['Shaken', 'Stirred'])
+        genome['id'] = genome_id
+        genome['parents'] = []
         return genome
 
     def evaluate_fitness(self, genome: Dict, target_vibe: str) -> float:
@@ -151,10 +153,15 @@ class EvolutionaryMixology:
         new_genome['Parsed_Ingredients'] = ingredients
         return new_genome
 
-    def crossover(self, parent1: Dict, parent2: Dict, log: List[str] = None) -> Tuple[Dict, Dict]:
+    def crossover(self, parent1: Dict, parent2: Dict, gen: int, idx: int, log: List[str] = None) -> Tuple[Dict, Dict]:
         child1 = copy.deepcopy(parent1)
         child2 = copy.deepcopy(parent2)
         
+        child1['id'] = f"g{gen}_i{idx}"
+        child2['id'] = f"g{gen}_i{idx+1}"
+        child1['parents'] = [parent1['id'], parent2['id']]
+        child2['parents'] = [parent1['id'], parent2['id']]
+
         b1 = [i for i in child1['Parsed_Ingredients'] if i['category'] == 'BASE']
         b2 = [i for i in child2['Parsed_Ingredients'] if i['category'] == 'BASE']
         nb1 = [i for i in child1['Parsed_Ingredients'] if i['category'] != 'BASE']
@@ -178,8 +185,9 @@ class EvolutionaryMixology:
         experiment_log.append(f"Starting evolutionary search for Target Vibe: '{target_vibe}'\n")
         experiment_log.append(f"Config: {generations} Gens, Pop: {pop_size}, Elitism: {int(elitism_pct*100)}%\n\n")
 
-        population = [self.generate_random_genome(target_vibe) for _ in range(pop_size)]
-        history = {'best': [], 'avg': []}
+        population = [self.generate_random_genome(target_vibe, f"g-1_i{i}") for i in range(pop_size)]
+        history = {'best': [], 'avg': [], 'worst': []}
+        population_snapshots = [] # To store samples for ancestry visualization
         num_elites = max(1, int(pop_size * elitism_pct))
         
         for generation in range(generations):
@@ -193,10 +201,28 @@ class EvolutionaryMixology:
             
             best_fit = population[0]['fitness']
             avg_fit = sum(x['fitness'] for x in population) / pop_size
+            worst_fit = population[-1]['fitness']
             
             history['best'].append(best_fit)
             history['avg'].append(avg_fit)
-            experiment_log.append(f"Best Fitness: {best_fit:.4f}  |  Avg Fitness: {avg_fit:.4f}")
+            history['worst'].append(worst_fit)
+            
+            # Store snapshot of entire population for scatter plots and lineage
+            # We only store essential data to keep JSON light
+            snapshot = []
+            for ind in population:
+                snapshot.append({
+                    'id': ind['id'],
+                    'parents': ind['parents'],
+                    'fitness': ind['fitness'],
+                    'vibe': ind['fitness_components']['vibe'],
+                    'structure': ind['fitness_components']['structure'],
+                    'novelty': ind['fitness_components']['novelty'],
+                    'name': ind.get('strDrink', 'Unknown')
+                })
+            population_snapshots.append(snapshot)
+
+            experiment_log.append(f"Best Fitness: {best_fit:.4f}  |  Avg Fitness: {avg_fit:.4f} | Worst: {worst_fit:.4f}")
             
             if generation % 5 == 0 or generation == generations - 1:
                 print(f"Gen {generation} | Best: {best_fit:.4f} | Avg: {avg_fit:.4f}")
@@ -210,15 +236,20 @@ class EvolutionaryMixology:
             crossovers_count = 0
             while len(new_population) < pop_size:
                 crossovers_count += 1
-                if crossovers_count < 3: # Limit logging to avoid excessive sizes
-                    experiment_log.append(f"Selection Event: Tournament selection executed.")
-                    
-                parent1 = max(random.sample(population, 3), key=lambda x: x['fitness'])
-                parent2 = max(random.sample(population, 3), key=lambda x: x['fitness'])
+                selection_indices = random.sample(range(len(population)), 3)
+                p1_idx = min(selection_indices)
+                selection_indices2 = random.sample(range(len(population)), 3)
+                p2_idx = min(selection_indices2)
                 
+                parent1 = population[p1_idx]
+                parent2 = population[p2_idx]
+                
+                if crossovers_count < 3:
+                    experiment_log.append(f"Selection Event: Tournament selection. Winner #1 (Fit: {parent1['fitness']:.3f}) defeated others.")
+                    
                 log_pass = experiment_log if crossovers_count < 3 else None
                 
-                c1, c2 = self.crossover(parent1, parent2, log=log_pass)
+                c1, c2 = self.crossover(parent1, parent2, generation, len(new_population), log=log_pass)
                 c1 = self.mutate(c1, log=log_pass)
                 c2 = self.mutate(c2, log=log_pass)
                 
@@ -236,7 +267,7 @@ class EvolutionaryMixology:
         experiment_log.append("=== EVOLUTION COMPLETE ===")
         experiment_log.append(f"Alpha Final Fitness: {population[0]['fitness']}")
             
-        return population[0], history, experiment_log
+        return population[0], history, experiment_log, population_snapshots
 
 if __name__ == "__main__":
     from data_loader import load_and_standardize_data
