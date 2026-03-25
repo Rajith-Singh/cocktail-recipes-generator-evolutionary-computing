@@ -177,7 +177,11 @@ class EvolutionaryMixology:
                 log.append(f"  -> Crossover: Swapped base spirits between genomes.")
             child1['Parsed_Ingredients'] = copy.deepcopy(b2) + nb1
             child2['Parsed_Ingredients'] = copy.deepcopy(b1) + nb2
-            
+        # ── CRITICAL: clear inherited fitness so children are re-evaluated ──
+        for key in ('fitness', 'fitness_components'):
+            child1.pop(key, None)
+            child2.pop(key, None)
+
         return child1, child2
 
     def evolve(self, target_vibe: str, generations: int = 20, pop_size: int = 50, elitism_pct: float = 0.05):
@@ -193,9 +197,10 @@ class EvolutionaryMixology:
         for generation in range(generations):
             experiment_log.append(f"--- GENERATION {generation} ---")
             
+            # Always re-evaluate all individuals every generation.
+            # (Children inherit parent bodies via deepcopy but must be scored fresh.)
             for ind in population:
-                if 'fitness' not in ind:
-                    self.evaluate_fitness(ind, target_vibe)
+                self.evaluate_fitness(ind, target_vibe)
             
             population.sort(key=lambda x: x['fitness'], reverse=True)
             
@@ -236,13 +241,13 @@ class EvolutionaryMixology:
             crossovers_count = 0
             while len(new_population) < pop_size:
                 crossovers_count += 1
-                selection_indices = random.sample(range(len(population)), 3)
-                p1_idx = min(selection_indices)
-                selection_indices2 = random.sample(range(len(population)), 3)
-                p2_idx = min(selection_indices2)
-                
-                parent1 = population[p1_idx]
-                parent2 = population[p2_idx]
+
+                # True tournament: sample 3 individuals, pick the one with HIGHEST fitness
+                tournament1 = random.sample(population, min(3, len(population)))
+                parent1 = max(tournament1, key=lambda x: x['fitness'])
+
+                tournament2 = random.sample(population, min(3, len(population)))
+                parent2 = max(tournament2, key=lambda x: x['fitness'])
                 
                 if crossovers_count < 3:
                     experiment_log.append(f"Selection Event: Tournament selection. Winner #1 (Fit: {parent1['fitness']:.3f}) defeated others.")
